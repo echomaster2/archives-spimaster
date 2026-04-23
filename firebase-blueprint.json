@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "UserStats": {
+      "title": "UserStats",
+      "description": "User's progress and stats",
+      "type": "object",
+      "properties": {
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "coins": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastActive": { "type": "number" },
+        "badges": { "type": "array", "items": { "type": "string" } },
+        "completedQuests": { "type": "array", "items": { "type": "string" } },
+        "totalLessonsCompleted": { "type": "number" },
+        "totalQuizzesPassed": { "type": "number" },
+        "skillTree": { "type": "object" },
+        "activeBoosts": { "type": "object" },
+        "completedLessons": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["xp", "level", "coins", "streak", "lastActive"]
+    },
+    "PublicProfile": {
+      "title": "PublicProfile",
+      "description": "Publicly visible user information",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "badgesCount": { "type": "number" },
+        "streak": { "type": "number" }
+      },
+      "required": ["userId", "name", "xp", "level", "badgesCount", "streak"]
+    },
+    "UserVaultMetadata": {
+      "title": "UserVaultMetadata",
+      "description": "User's private study vault metadata (excluding lessons)",
+      "type": "object",
+      "properties": {
+        "mnemonics": { "type": "object" },
+        "globalFlashcards": { "type": "array", "items": { "type": "object" } },
+        "examHistory": { "type": "array", "items": { "type": "object" } },
+        "forgedArtifacts": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "CachedLesson": {
+      "title": "CachedLesson",
+      "description": "Individual cached lesson content",
+      "type": "object",
+      "properties": {
+        "script": { "type": "string" },
+        "quiz": { "type": "array", "items": { "type": "object" } },
+        "flashcards": { "type": "array", "items": { "type": "object" } },
+        "pulse": { "type": "object" },
+        "masteryChoices": { "type": "array", "items": { "type": "object" } },
+        "audio": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "timestamp": { "type": "number" }
+      }
+    },
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "User's application settings",
+      "type": "object",
+      "properties": {
+        "theme": { "type": "string", "enum": ["dark", "light"] },
+        "notifications": {
+          "type": "object",
+          "properties": {
+            "pulse": { "type": "boolean" },
+            "weekly": { "type": "boolean" },
+            "streak": { "type": "boolean" }
+          }
+        },
+        "hotMic": { "type": "boolean" }
+      }
+    },
+    "CommunityExtraction": {
+      "title": "CommunityExtraction",
+      "description": "High-yield mnemonic or tip shared by the community",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "topic": { "type": "string" },
+        "content": { "type": "string" },
+        "upvotes": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["authorId", "authorName", "topic", "content", "upvotes", "timestamp"]
+    },
+    "SharedMedia": {
+      "title": "SharedMedia",
+      "description": "Media item (image/video) shared globally with the community",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "url", "mediaType", "authorId", "authorName", "timestamp"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserStats",
+      "description": "Private user statistics and progress"
+    },
+    "users/{userId}/settings/config": {
+      "schema": "UserSettings",
+      "description": "User's private application settings"
+    },
+    "users/{userId}/vault/data": {
+      "schema": "UserVaultMetadata",
+      "description": "User's private study vault metadata"
+    },
+    "users/{userId}/vault/data/lessons/{lessonId}": {
+      "schema": "CachedLesson",
+      "description": "Individual cached lesson content"
+    },
+    "public_profiles/{userId}": {
+      "schema": "PublicProfile",
+      "description": "Public profile for leaderboard and social features"
+    },
+    "community_extractions/{extractionId}": {
+      "schema": "CommunityExtraction",
+      "description": "Shared community knowledge fragments"
+    },
+    "community_media/{mediaId}": {
+      "schema": "SharedMedia",
+      "description": "Globally shared images and videos"
+    }
+  }
+}

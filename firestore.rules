@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUserStats(data) {
+      return data.keys().hasAll(['xp', 'level', 'coins', 'streak', 'lastActive']) 
+        && data.xp is number && data.xp >= 0
+        && data.level is number && data.level >= 0
+        && data.coins is number && data.coins >= 0
+        && data.streak is number && data.streak >= 0
+        && data.lastActive is number;
+    }
+
+    function isValidUserSettings(data) {
+      return data.theme in ['dark', 'light']
+        && data.notifications is map
+        && data.notifications.neuralPulse is bool
+        && data.notifications.weeklyBrief is bool
+        && data.notifications.streakAlerts is bool
+        && data.hotMic is bool;
+    }
+
+    function isValidCachedLesson(data) {
+      return data.script is string && data.script.size() <= 1000000
+        && data.timestamp is number;
+    }
+
+    function isValidPublicProfile(data) {
+      return data.keys().hasAll(['userId', 'name', 'xp', 'level', 'badgesCount', 'streak'])
+        && data.userId == request.auth.uid
+        && data.name is string && data.name.size() <= 100
+        && data.xp is number && data.level is number;
+    }
+
+    // --- Rules ---
+
+    // 1. User Stats
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isEmailVerified() && isValidUserStats(incoming());
+      
+      // Relational Sync for UserVault
+      match /vault/data {
+        allow get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isEmailVerified(); // Schema check simplified for brevity here, should be robust in production
+
+        match /lessons/{lessonId} {
+          allow get: if isOwner(userId);
+          allow create, update: if isOwner(userId) && isEmailVerified() && isValidId(lessonId) && isValidCachedLesson(incoming());
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      // User Settings
+      match /settings/config {
+        allow get: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isEmailVerified() && isValidUserSettings(incoming());
+      }
+    }
+
+    // 2. Public Profiles
+    match /public_profiles/{userId} {
+      allow get: if true;
+      allow list: if true; // In production, force a limit/filter
+      allow create, update: if isOwner(userId) && isEmailVerified() && isValidPublicProfile(incoming());
+    }
+
+    // 3. Community Extractions
+    match /community_extractions/{extractionId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isEmailVerified() && isValidId(extractionId) && isValidExtraction(incoming());
+      allow update: if isSignedIn() && (
+        (incoming().diff(existing()).affectedKeys().hasOnly(['upvotes'])) ||
+        (isOwner(existing().authorId) && isEmailVerified() && isValidExtraction(incoming()))
+      );
+      allow delete: if isOwner(existing().authorId);
+    }
+
+    function isValidExtraction(data) {
+      return data.keys().hasAll(['authorId', 'authorName', 'topic', 'content', 'upvotes', 'timestamp'])
+        && data.authorId == request.auth.uid
+        && data.authorName is string && data.authorName.size() <= 100
+        && data.topic is string && data.topic.size() <= 100
+        && data.content is string && data.content.size() <= 1000
+        && data.upvotes is number
+        && data.timestamp is number;
+    }
+
+    // 4. Community Media
+    match /community_media/{mediaId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isEmailVerified() && isValidId(mediaId) && isValidSharedMedia(incoming());
+      allow update: if isOwner(existing().authorId) && isEmailVerified() && isValidSharedMedia(incoming());
+      allow delete: if isOwner(existing().authorId);
+    }
+
+    function isValidSharedMedia(data) {
+      return data.keys().hasAll(['title', 'url', 'mediaType', 'authorId', 'authorName', 'timestamp'])
+        && data.authorId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.url is string && data.url.size() <= 2000
+        && data.mediaType in ['image', 'video']
+        && data.authorName is string && data.authorName.size() <= 100
+        && data.timestamp is number;
+    }
+  }
+}

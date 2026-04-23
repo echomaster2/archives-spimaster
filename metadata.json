@@ -1,0 +1,7 @@
+{
+  "name": "SPI Master: Sonography Archives",
+  "description": "A cinematic, high-persistence learning platform for ARDMS SPI mastery with automated neural logic caching.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
